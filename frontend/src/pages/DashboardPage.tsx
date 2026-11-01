@@ -52,21 +52,45 @@ export const DashboardPage: React.FC<DashboardPageProps> = () => {
     );
   }
 
-  if (error || !summary) {
-    return (
-      <div className="max-w-6xl mx-auto py-12 px-4">
-        <div className="p-6 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800">
-          <h2 className="text-lg font-bold mb-2">Error Loading Dashboard</h2>
-          <p className="text-sm">{error || 'Could not fetch summary data.'}</p>
-        </div>
-      </div>
-    );
-  }
+  const activeSummary: DashboardSummary = summary || {
+    total_reports: 0,
+    reports_awaiting_review: 0,
+    reports_urgent_review: 0,
+    reports_in_progress: 0,
+    reports_resolved: 0,
+    reports_clarification_requested: 0,
+    reports_overdue: 0,
+    category_distribution: {},
+    pathway_distribution: {},
+    avg_response_time_hours: null,
+    median_response_time_hours: null,
+  };
 
-  const isEmpty = summary.total_reports === 0;
+  const isEmpty = activeSummary.total_reports === 0;
 
   return (
     <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 space-y-8">
+      {/* Cloud deployment guidance banner */}
+      {error && (
+        <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs sm:text-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-start sm:items-center gap-2.5">
+            <span className="text-amber-600 text-lg">💡</span>
+            <div>
+              <strong>Cloud Frontend Notice:</strong> CivicPulse AI operates local AI models (Qwen2.5-VL & Qwen2.5) on your hardware for privacy.
+              To connect your live local backend to this Vercel site, configure your Backend URL in Settings (top right) or run locally at <strong>http://localhost:5173</strong>.
+            </div>
+          </div>
+          <a
+            href="http://localhost:5173"
+            target="_blank"
+            rel="noreferrer"
+            className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs"
+          >
+            Open Local App
+          </a>
+        </div>
+      )}
+
       {/* Title */}
       <div>
         <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Civic Accountability Dashboard</h1>
@@ -93,7 +117,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = () => {
         {/* Total */}
         <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
           <div className="text-xs font-semibold text-slate-500 mb-1">Total Grievances</div>
-          <div className="text-2xl sm:text-3xl font-extrabold text-slate-900">{summary.total_reports}</div>
+          <div className="text-2xl sm:text-3xl font-extrabold text-slate-900">{activeSummary.total_reports}</div>
           <div className="text-[11px] text-slate-400 mt-1">All logged records</div>
         </div>
 
@@ -102,28 +126,28 @@ export const DashboardPage: React.FC<DashboardPageProps> = () => {
           <div className="text-xs font-semibold text-red-600 mb-1 flex items-center gap-1">
             <Flame className="w-3.5 h-3.5" /> Urgent Review
           </div>
-          <div className="text-2xl sm:text-3xl font-extrabold text-red-700">{summary.reports_urgent_review}</div>
+          <div className="text-2xl sm:text-3xl font-extrabold text-red-700">{activeSummary.reports_urgent_review}</div>
           <div className="text-[11px] text-red-500 mt-1">Hazard / Danger</div>
         </div>
 
         {/* Awaiting Review */}
         <div className="bg-white rounded-2xl border border-amber-200 p-5 shadow-sm bg-amber-50/20">
           <div className="text-xs font-semibold text-amber-600 mb-1">Awaiting Review</div>
-          <div className="text-2xl sm:text-3xl font-extrabold text-amber-700">{summary.reports_awaiting_review}</div>
+          <div className="text-2xl sm:text-3xl font-extrabold text-amber-700">{activeSummary.reports_awaiting_review}</div>
           <div className="text-[11px] text-amber-500 mt-1">Triage pending</div>
         </div>
 
         {/* In Progress */}
         <div className="bg-white rounded-2xl border border-blue-200 p-5 shadow-sm bg-blue-50/20">
           <div className="text-xs font-semibold text-blue-600 mb-1">In Progress</div>
-          <div className="text-2xl sm:text-3xl font-extrabold text-blue-700">{summary.reports_in_progress}</div>
+          <div className="text-2xl sm:text-3xl font-extrabold text-blue-700">{activeSummary.reports_in_progress}</div>
           <div className="text-[11px] text-blue-500 mt-1">Work crews active</div>
         </div>
 
         {/* Resolved */}
         <div className="bg-white rounded-2xl border border-emerald-200 p-5 shadow-sm bg-emerald-50/20">
           <div className="text-xs font-semibold text-emerald-600 mb-1">Resolved</div>
-          <div className="text-2xl sm:text-3xl font-extrabold text-emerald-700">{summary.reports_resolved}</div>
+          <div className="text-2xl sm:text-3xl font-extrabold text-emerald-700">{activeSummary.reports_resolved}</div>
           <div className="text-[11px] text-emerald-500 mt-1">Fixed & verified</div>
         </div>
 
@@ -132,7 +156,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = () => {
           <div className="text-xs font-semibold text-purple-600 mb-1 flex items-center gap-1">
             <Clock className="w-3.5 h-3.5" /> Overdue (&gt;48h)
           </div>
-          <div className="text-2xl sm:text-3xl font-extrabold text-purple-700">{summary.reports_overdue}</div>
+          <div className="text-2xl sm:text-3xl font-extrabold text-purple-700">{activeSummary.reports_overdue}</div>
           <div className="text-[11px] text-purple-500 mt-1">Action SLA exceeded</div>
         </div>
       </div>
@@ -142,10 +166,10 @@ export const DashboardPage: React.FC<DashboardPageProps> = () => {
         {/* Category Breakdown */}
         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
           <h2 className="text-base font-bold text-slate-900 mb-4">Grievance Distribution by Category</h2>
-          {Object.keys(summary.category_distribution).length > 0 ? (
+          {Object.keys(activeSummary.category_distribution).length > 0 ? (
             <div className="space-y-3">
-              {Object.entries(summary.category_distribution).map(([cat, count]) => {
-                const pct = summary.total_reports > 0 ? ((count / summary.total_reports) * 100).toFixed(0) : '0';
+              {Object.entries(activeSummary.category_distribution).map(([cat, count]) => {
+                const pct = activeSummary.total_reports > 0 ? ((count / activeSummary.total_reports) * 100).toFixed(0) : '0';
                 return (
                   <div key={cat} className="space-y-1">
                     <div className="flex justify-between text-xs font-semibold text-slate-700">
@@ -167,10 +191,10 @@ export const DashboardPage: React.FC<DashboardPageProps> = () => {
         {/* Pathway Breakdown */}
         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
           <h2 className="text-base font-bold text-slate-900 mb-4">Review Pathway Routing Distribution</h2>
-          {Object.keys(summary.pathway_distribution).length > 0 ? (
+          {Object.keys(activeSummary.pathway_distribution).length > 0 ? (
             <div className="space-y-3">
-              {Object.entries(summary.pathway_distribution).map(([path, count]) => {
-                const pct = summary.total_reports > 0 ? ((count / summary.total_reports) * 100).toFixed(0) : '0';
+              {Object.entries(activeSummary.pathway_distribution).map(([path, count]) => {
+                const pct = activeSummary.total_reports > 0 ? ((count / activeSummary.total_reports) * 100).toFixed(0) : '0';
                 const color =
                   path === 'urgent_human_review'
                     ? 'bg-rose-500'
@@ -212,7 +236,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = () => {
             <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
               <div className="text-xs font-semibold text-slate-500 mb-1">Average Response Time</div>
               <div className="text-xl font-bold text-slate-900">
-                {summary.avg_response_time_hours !== null ? `${summary.avg_response_time_hours} hrs` : 'N/A'}
+                {activeSummary.avg_response_time_hours !== null ? `${activeSummary.avg_response_time_hours} hrs` : 'N/A'}
               </div>
               <div className="text-[10px] text-slate-400 mt-1">Creation to first work dispatch</div>
             </div>
@@ -220,7 +244,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = () => {
             <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
               <div className="text-xs font-semibold text-slate-500 mb-1">Median Response Time</div>
               <div className="text-xl font-bold text-slate-900">
-                {summary.median_response_time_hours !== null ? `${summary.median_response_time_hours} hrs` : 'N/A'}
+                {activeSummary.median_response_time_hours !== null ? `${activeSummary.median_response_time_hours} hrs` : 'N/A'}
               </div>
               <div className="text-[10px] text-slate-400 mt-1">50th percentile resolution speed</div>
             </div>

@@ -6,13 +6,74 @@ import {
   WorkflowStatus,
 } from '../types';
 
-const API_BASE = '/api';
+export function getApiBase(): string {
+  if (typeof window !== 'undefined') {
+    const stored = localStorage.getItem('civicpulse_api_base');
+    if (stored && stored.trim()) {
+      return stored.trim().replace(/\/+$/, '');
+    }
+    // If accessing via localhost or 127.0.0.1, use /api proxy or direct 8000
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return '/api';
+    }
+  }
+  return (import.meta.env.VITE_API_BASE_URL as string) || '/api';
+}
+
+export function setApiBase(url: string): void {
+  if (!url || !url.trim() || url === '/api') {
+    localStorage.removeItem('civicpulse_api_base');
+  } else {
+    localStorage.setItem('civicpulse_api_base', url.trim().replace(/\/+$/, ''));
+  }
+}
+
+async function safeFetchJson<T>(url: string, options?: RequestInit, fallbackData?: T): Promise<T> {
+  try {
+    const res = await fetch(url, options);
+    const contentType = res.headers.get('content-type') || '';
+
+    // If server returned HTML (e.g. Vercel SPA rewrite when backend is not running on cloud)
+    if (contentType.includes('text/html') || !contentType.includes('application/json')) {
+      if (fallbackData !== undefined) {
+        return fallbackData;
+      }
+      throw new Error(
+        'The backend API is unreachable at this URL (received HTML instead of JSON). ' +
+        'Because CivicPulse runs local Qwen models on your hardware, please ensure your local backend is running (uvicorn) ' +
+        'and configured in the Backend Connection settings.'
+      );
+    }
+
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => ({}));
+      throw new Error(errJson.detail || `Request failed with status ${res.status}`);
+    }
+
+    return await res.json();
+  } catch (err: any) {
+    if (fallbackData !== undefined) {
+      return fallbackData;
+    }
+    throw err;
+  }
+}
 
 export async function createReport(formData: FormData): Promise<{ report_id: string; processing_status: string; message: string }> {
-  const res = await fetch(`${API_BASE}/reports`, {
+  const base = getApiBase();
+  const res = await fetch(`${base}/reports`, {
     method: 'POST',
     body: formData,
   });
+
+  const contentType = res.headers.get('content-type') || '';
+  if (contentType.includes('text/html')) {
+    throw new Error(
+      'Cannot submit report: The backend server is not connected. ' +
+      'Please start the local backend (python -m uvicorn backend.app.main:app) and configure your Backend URL in Settings.'
+    );
+  }
+
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
     throw new Error(errorData.detail || `Failed to submit report (${res.status})`);
@@ -21,23 +82,15 @@ export async function createReport(formData: FormData): Promise<{ report_id: str
 }
 
 export async function analyzeReport(reportId: string): Promise<ReportDetail> {
-  const res = await fetch(`${API_BASE}/reports/${reportId}/analyze`, {
+  const base = getApiBase();
+  return safeFetchJson<ReportDetail>(`${base}/reports/${reportId}/analyze`, {
     method: 'POST',
   });
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.detail || `Analysis failed (${res.status})`);
-  }
-  return res.json();
 }
 
 export async function getReport(reportId: string): Promise<ReportDetail> {
-  const res = await fetch(`${API_BASE}/reports/${reportId}`);
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.detail || `Report not found (${res.status})`);
-  }
-  return res.json();
+  const base = getApiBase();
+  return safeFetchJson<ReportDetail>(`${base}/reports/${reportId}`);
 }
 
 export async function listReports(params: {
@@ -54,11 +107,12 @@ export async function listReports(params: {
   if (params.pathway && params.pathway !== 'all') q.set('pathway', params.pathway);
   if (params.status && params.status !== 'all') q.set('status', params.status);
 
-  const res = await fetch(`${API_BASE}/reports?${q.toString()}`);
-  if (!res.ok) {
-    throw new Error(`Failed to list reports (${res.status})`);
-  }
-  return res.json();
+  const base = getApiBase();
+  return safeFetchJson<PaginatedReports>(
+    `${base}/reports?${q.toString()}`,
+    {},
+    { total: 0, page: 1, limit: 15, items: [] }
+  );
 }
 
 export async function updateReportStatus(
@@ -68,7 +122,8 @@ export async function updateReportStatus(
   reason: string,
   reviewerToken: string
 ): Promise<ReportDetail> {
-  const res = await fetch(`${API_BASE}/reports/${reportId}/updates`, {
+  const base = getApiBase();
+  return safeFetchJson<ReportDetail>(`${base}/reports/${reportId}/updates`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -81,33 +136,48 @@ export async function updateReportStatus(
       reason: reason,
     }),
   });
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.detail || `Failed to update status (${res.status})`);
-  }
-  return res.json();
 }
 
+const DEFAULT_SUMMARY: DashboardSummary = {
+  total_reports: 0,
+  reports_awaiting_review: 0,
+  reports_urgent_review: 0,
+  reports_in_progress: 0,
+  reports_resolved: 0,
+  reports_clarification_requested: 0,
+  reports_overdue: 0,
+  category_distribution: {},
+  pathway_distribution: {},
+  avg_response_time_hours: null,
+  median_response_time_hours: null,
+};
+
 export async function getDashboardSummary(): Promise<DashboardSummary> {
-  const res = await fetch(`${API_BASE}/dashboard/summary`);
-  if (!res.ok) {
-    throw new Error(`Failed to fetch dashboard summary (${res.status})`);
-  }
-  return res.json();
+  const base = getApiBase();
+  return safeFetchJson<DashboardSummary>(
+    `${base}/dashboard/summary`,
+    {},
+    DEFAULT_SUMMARY
+  );
 }
 
 export async function getHotspots(): Promise<HotspotItem[]> {
-  const res = await fetch(`${API_BASE}/dashboard/hotspots`);
-  if (!res.ok) {
-    throw new Error(`Failed to fetch hotspots (${res.status})`);
-  }
-  return res.json();
+  const base = getApiBase();
+  return safeFetchJson<HotspotItem[]>(`${base}/dashboard/hotspots`, {}, []);
 }
 
 export async function getSystemHealth(): Promise<any> {
-  const res = await fetch(`${API_BASE}/dashboard/health`);
-  if (!res.ok) {
-    throw new Error(`Health check failed (${res.status})`);
-  }
-  return res.json();
+  const base = getApiBase();
+  return safeFetchJson<any>(
+    `${base}/dashboard/health`,
+    {},
+    {
+      service: 'CivicPulse AI Backend',
+      status: 'offline',
+      ollama: {
+        status: 'unreachable',
+        error: 'Backend API is currently offline or unreachable at ' + base,
+      },
+    }
+  );
 }

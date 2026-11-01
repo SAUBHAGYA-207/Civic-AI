@@ -35,6 +35,7 @@ class Settings(BaseSettings):
         "http://127.0.0.1:5173",
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        "https://frontend-woad-ten-72.vercel.app",
     ]
 
     model_config = SettingsConfigDict(
