@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ShieldCheck, Activity, PlusCircle, Search, ListFilter, Settings, CheckCircle2, AlertTriangle, RefreshCw, X } from 'lucide-react';
-import { getSystemHealth, getApiBase, setApiBase } from '../api/client';
+import { getSystemHealth, getApiBase, setApiBase, DEFAULT_TUNNEL_API } from '../api/client';
 
 interface NavbarProps {
   activeTab: 'report' | 'dashboard' | 'track' | 'list';
@@ -187,6 +187,13 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
 
                 <div className="flex flex-wrap gap-2 text-[11px]">
                   <span className="text-slate-400 py-1">Presets:</span>
+                  <button
+                    type="button"
+                    onClick={() => setApiUrl(DEFAULT_TUNNEL_API)}
+                    className="px-2 py-1 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 font-mono font-bold"
+                  >
+                    Cloudflare Live Tunnel
+                  </button>
                   <button
                     type="button"
                     onClick={() => setApiUrl('http://localhost:8000/api')}

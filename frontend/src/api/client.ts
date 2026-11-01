@@ -6,22 +6,26 @@ import {
   WorkflowStatus,
 } from '../types';
 
+export const DEFAULT_TUNNEL_API = 'https://manuals-shorts-downtown-pill.trycloudflare.com/api';
+
 export function getApiBase(): string {
   if (typeof window !== 'undefined') {
     const stored = localStorage.getItem('civicpulse_api_base');
     if (stored && stored.trim()) {
       return stored.trim().replace(/\/+$/, '');
     }
-    // If accessing via localhost or 127.0.0.1, use /api proxy or direct 8000
+    // If accessing via localhost or 127.0.0.1, use /api proxy
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
       return '/api';
     }
+    // On Vercel, default to the active live Cloudflare tunnel
+    return DEFAULT_TUNNEL_API;
   }
-  return (import.meta.env.VITE_API_BASE_URL as string) || '/api';
+  return DEFAULT_TUNNEL_API;
 }
 
 export function setApiBase(url: string): void {
-  if (!url || !url.trim() || url === '/api') {
+  if (!url || !url.trim()) {
     localStorage.removeItem('civicpulse_api_base');
   } else {
     localStorage.setItem('civicpulse_api_base', url.trim().replace(/\/+$/, ''));
@@ -39,9 +43,8 @@ async function safeFetchJson<T>(url: string, options?: RequestInit, fallbackData
         return fallbackData;
       }
       throw new Error(
-        'The backend API is unreachable at this URL (received HTML instead of JSON). ' +
-        'Because CivicPulse runs local Qwen models on your hardware, please ensure your local backend is running (uvicorn) ' +
-        'and configured in the Backend Connection settings.'
+        'The backend API is unreachable at this URL. ' +
+        'Please verify that your Cloudflare tunnel and local backend server are active.'
       );
     }
 
@@ -69,8 +72,7 @@ export async function createReport(formData: FormData): Promise<{ report_id: str
   const contentType = res.headers.get('content-type') || '';
   if (contentType.includes('text/html')) {
     throw new Error(
-      'Cannot submit report: The backend server is not connected. ' +
-      'Please start the local backend (python -m uvicorn backend.app.main:app) and configure your Backend URL in Settings.'
+      'Cannot submit report: Backend server is unreachable at ' + base
     );
   }
 
