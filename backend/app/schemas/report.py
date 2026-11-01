@@ -1,4 +1,4 @@
-from typing import Literal, Any
+from typing import Literal, Any, Optional
 from datetime import datetime
 from pydantic import BaseModel, Field
 from backend.app.schemas.image_evidence import IssueCategory, ImageEvidence
@@ -82,11 +82,11 @@ class StatusHistoryRead(BaseModel):
 
 class EvidenceRecordRead(BaseModel):
     id: str
-    image_evidence: ImageEvidence | None
-    text_evidence: TextEvidence | None
-    fused_evidence: FusedEvidence | None
-    model_identifiers: dict[str, str] = Field(default_factory=dict)
-    schema_version: str
+    image_evidence: Optional[Any] = None
+    text_evidence: Optional[Any] = None
+    fused_evidence: Optional[Any] = None
+    model_identifiers: dict[str, Any] = Field(default_factory=dict)
+    schema_version: str = "1.0.0"
     created_at: str
 
 class ReportDetail(BaseModel):

@@ -69,7 +69,10 @@ def serialize_report_detail(report) -> ReportDetail:
 
     dept_rec = None
     if report.department_recommendation:
-        dept_rec = DepartmentRecommendation(**report.department_recommendation)
+        try:
+            dept_rec = DepartmentRecommendation(**report.department_recommendation)
+        except Exception:
+            dept_rec = None
 
     return ReportDetail(
         id=report.id,
